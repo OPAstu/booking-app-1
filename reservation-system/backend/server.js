@@ -1,20 +1,21 @@
-// backend/server.js
-const express = require('express');
-const bodyParser = require('body-parser');
-const { google } = require('googleapis');
-const fs = require('fs');
-require('dotenv').config();
+// server.js
+const express = require("express");
+const bodyParser = require("body-parser");
+const { google } = require("googleapis");
+const fs = require("fs");
+require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5101;
 
 // GoogleカレンダーAPIの認証設定
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const SCOPES = ["https://www.googleapis.com/auth/calendar"];
 const calendarId = process.env.GOOGLE_CALENDAR_ID;
-console.log(calendarId);
-const serviceAccountKey = JSON.parse(fs.readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_KEY));
+const serviceAccountKey = JSON.parse(
+  fs.readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_KEY)
+);
 
 // GoogleカレンダーAPIクライアントの作成
 const auth = new google.auth.JWT(
@@ -23,37 +24,57 @@ const auth = new google.auth.JWT(
   serviceAccountKey.private_key,
   SCOPES
 );
-const calendar = google.calendar({ version: 'v3', auth });
+const calendar = google.calendar({ version: "v3", auth });
 
 // カレンダーのイベント取得エンドポイント
-app.get('/api/calendar-events', async (req, res) => {
+app.get("/api/calendar-events", async (req, res) => {
   try {
     const response = await calendar.events.list({
       calendarId: calendarId,
-      timeMin: (new Date()).toISOString(),
+      timeMin: new Date().toISOString(),
       singleEvents: true,
-      orderBy: 'startTime',
+      orderBy: "startTime",
     });
     res.status(200).json({ events: response.data.items });
   } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json({ error: 'Error fetching events' });
+    console.error("Error fetching events:", error);
+    res.status(500).json({ error: "Error fetching events" });
+  }
+});
+// 工房予約取得用エンドポイント
+app.get("/api/workshop-bookings", async (req, res) => {
+  try {
+    const response = await calendar.events.list({
+      calendarId: calendarId,
+      timeMin: new Date().toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+
+    // 工房予約のみをフィルタリング
+    const workshopBookings = response.data.items.filter(
+      (event) => event.summary === "工房予約"
+    );
+    res.status(200).json({ events: workshopBookings });
+  } catch (error) {
+    console.error("Error fetching workshop bookings:", error);
+    res.status(500).json({ error: "Error fetching workshop bookings" });
   }
 });
 
 // カレンダーに新規予約を追加するエンドポイント
-app.post('/api/book', async (req, res) => {
-  const { date, userId } = req.body;
+app.post("/api/book", async (req, res) => {
+  const { startDate, endDate } = req.body;
 
   const event = {
-    summary: `予約 by User ${userId}`,
+    summary: "工房予約",
     start: {
-      dateTime: new Date(date).toISOString(),
-      timeZone: 'Asia/Tokyo',
+      dateTime: startDate,
+      timeZone: "Asia/Tokyo",
     },
     end: {
-      dateTime: new Date(new Date(date).getTime() + 15 * 60 * 1000).toISOString(), // 15分後
-      timeZone: 'Asia/Tokyo',
+      dateTime: endDate,
+      timeZone: "Asia/Tokyo",
     },
   };
 
@@ -62,11 +83,11 @@ app.post('/api/book', async (req, res) => {
       calendarId: calendarId,
       resource: event,
     });
-    res.status(200).json({ message: '予約が追加されました' });
+    res.status(200).json({ message: "予約が追加されました" });
   } catch (error) {
-    console.error('Error creating event:', error);
-    res.status(500).json({ error: 'Error creating event' });
+    console.error("Error creating event:", error);
+    res.status(500).json({ error: error.message, details: error }); // 詳細なエラーメッセージを返す
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log("Server running on port ", PORT));

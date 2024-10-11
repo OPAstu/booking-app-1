@@ -1,0 +1,108 @@
+/* CalendarComponent.css */
+
+.fc .fc-toolbar-title {
+  font-size: 20px;
+  color: #333;
+}
+
+.fc-toolbar {
+  margin-bottom: 15px;
+}
+
+.fc-button {
+  background-color: #4caf50;
+  border: none;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.fc-button:hover {
+  background-color: #45a049;
+}
+
+.fc-button-primary {
+  background-color: #4caf50;
+  border-color: #4caf50;
+}
+
+.fc-button-primary:hover {
+  background-color: #45a049;
+  border-color: #45a049;
+}
+
+.fc .fc-today {
+  background-color: #e6f7e6;
+}
+
+.fc .fc-timegrid-slot {
+  border-color: #ddd;
+}
+
+.fc .fc-timegrid-slot-lane.fc-scrollgrid-sync-inner {
+  background-color: #f9f9f9;
+}
+
+.fc .fc-timegrid-event {
+  border: 1px solid #4caf50;
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.fc .fc-day-disabled {
+  background-color: rgba(128, 128, 128, 0.1);
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.fc .fc-daygrid-day.fc-day-past,
+.fc .fc-daygrid-day.fc-day-disabled,
+.fc .fc-day-disabled {
+  background-color: rgba(128, 128, 128, 0.1) !important;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.fc-timegrid-slot-label {
+  color: #666;
+  font-size: 12px;
+}
+
+.fc .fc-event {
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .fc .fc-toolbar-title {
+    font-size: 16px;
+  }
+
+  .fc .fc-button {
+    font-size: 12px;
+  }
+}
+
+.disabled-event {
+  background-color: rgba(192, 192, 192, 0.5) !important;
+  pointer-events: none;
+}
+
+.past-date {
+  background-color: rgba(192, 192, 192, 0.5) !important;
+  pointer-events: none;
+}
+
+/* 過去の日付をグレーアウト */
+.past-event {
+  background-color: #d3d3d3 !important;
+  color: #a9a9a9 !important;
+}
+
+/* OPA イベントの時間帯をグレーアウト */
+.opa-event {
+  background-color: #dcdcdc !important;
+  color: #808080 !important;
+}
