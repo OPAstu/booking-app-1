@@ -21,6 +21,7 @@
 .env.production.local
 /backend/.env
 /backend/service-account-key.json
+/backend/reserve-system-836e7-firebase-adminsdk-kdorp-dccfcf19fd.json
 
 npm-debug.log*
 yarn-debug.log*
