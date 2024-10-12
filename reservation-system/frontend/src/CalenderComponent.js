@@ -1,61 +1,105 @@
-import React, { useState, useEffect } from "react";
+// CalendarComponent.js
+import React, { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import axios from "axios";
-import "./CalendarComponent.css";
+import jaLocale from "@fullcalendar/core/locales/ja";
 
-const CalendarComponent = ({ onDateClick }) => {
-  const [events, setEvents] = useState([]);
+const CalendarComponent = ({ events, onDateClick }) => {
+  const [hoveredEvent, setHoveredEvent] = useState(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await axios.get("/api/calendar-events");
-        const now = new Date();
+  const handleEventMouseEnter = (info) => {
+    const event = info.event;
+    const startTime = event.start.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const endTime = event.end.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    setHoveredEvent({
+      top: info.jsEvent.pageY,
+      left: info.jsEvent.pageX,
+      text: `${startTime} - ${endTime}`,
+    });
+  };
 
-        const processedEvents = response.data.events.map((event) => {
-          const eventStart = new Date(event.start.dateTime);
-          const eventEnd = new Date(event.end.dateTime);
-          const isOPA = event.summary === "OPA";
-          const isPastEvent = eventStart < now;
+  const handleEventMouseLeave = () => {
+    setHoveredEvent(null);
+  };
 
-          return {
-            ...event,
-            start: eventStart,
-            end: eventEnd,
-            className: isOPA ? "opa-event" : isPastEvent ? "past-event" : "",
-          };
-        });
+  const selectAllow = (selectInfo) => {
+    const selectedStart = selectInfo.start;
+    const selectedEnd = selectInfo.end;
+    const now = new Date();
+    if (selectedStart < now) {
+      return false;
+    }
+    return events.every((event) => {
+      if (event.start && event.end) {
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
 
-        setEvents(processedEvents);
-      } catch (error) {
-        console.error("Error fetching events:", error);
+        if (
+          event.className === "non-workshop-buffer" ||
+          event.className === "fully-booked"
+        ) {
+          return selectedEnd <= eventStart || selectedStart >= eventEnd;
+        }
       }
-    };
-    fetchEvents();
-  }, []);
-
-  const handleDateClick = (info) => {
-    onDateClick(info.startStr, events);
+      return true;
+    });
   };
 
   return (
-    <FullCalendar
-      plugins={[timeGridPlugin, interactionPlugin]}
-      initialView="timeGridWeek"
-      slotMinTime="09:00:00"
-      slotMaxTime="22:00:00"
-      events={events}
-      selectable={true}
-      select={handleDateClick}
-      slotDuration="00:15:00"
-      headerToolbar={{
-        left: "prev,next today",
-        center: "title",
-        right: "timeGridWeek,timeGridDay",
-      }}
-    />
+    <div className="calendar-container">
+      <FullCalendar
+        plugins={[timeGridPlugin, interactionPlugin]}
+        locale={jaLocale}
+        initialView="timeGridWeek"
+        slotMinTime="09:00:00"
+        slotMaxTime="22:00:00"
+        events={events}
+        selectable={true}
+        select={onDateClick}
+        selectAllow={selectAllow}
+        eventMouseEnter={handleEventMouseEnter}
+        eventMouseLeave={handleEventMouseLeave}
+        slotLabelFormat={{
+          hour: "numeric",
+          minute: "2-digit",
+          omitZeroMinute: false,
+          hour12: false,
+        }}
+        eventTimeFormat={{
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: false,
+        }}
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "timeGridWeek,timeGridDay",
+        }}
+        buttonText={{
+          today: "今日",
+          week: "週",
+          day: "日",
+        }}
+        allDayText="終日"
+      />
+      {hoveredEvent && (
+        <div
+          className="tooltip"
+          style={{ top: hoveredEvent.top, left: hoveredEvent.left }}
+        >
+          {hoveredEvent.text}
+        </div>
+      )}
+    </div>
   );
 };
 
