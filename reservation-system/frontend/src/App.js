@@ -1,11 +1,12 @@
-// App.js
 import React, { useState, useEffect } from "react";
 import "./styles.css";
 import CalendarComponent from "./CalenderComponent";
 import LoginModal from "./LoginModal";
 import BookingModal from "./BookingModal";
+import ListModal from "./ListModal";
 import { auth } from "./firebaseConfig";
 import axios from "axios";
+import ListIcon from "@mui/icons-material/List";
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -17,23 +18,27 @@ const App = () => {
   const [nonWorkshopEvents, setNonWorkshopEvents] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [timeSlots, setTimeSlots] = useState({});
+  const [lastUpdate, setLastUpdate] = useState(new Date().toISOString());
+  const [showListModal, setShowListModal] = useState(false);
+  const [reservations, setReservations] = useState([]);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-    });
-    return unsubscribe;
-  }, []);
-
+  // カレンダーのイベントを取得する関数
   const fetchEvents = async () => {
     try {
-      const response = await axios.get("/api/workshop-bookings");
-      const events = response.data.events;
-      const nonWorkshopEvents = events.filter(
-        (event) => event.type === "NON_WORKSHOP"
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/calendar-events`
       );
+
+      const events = response.data.events;
+
+      // 非ワークショップのイベントをフィルタリング
+      const nonWorkshopEvents = events.filter(
+        (event) => event.summary !== "工房予約"
+      );
+
+      // 工房予約のイベントをフィルタリング
       const workshopBookings = events.filter(
-        (event) => event.type === "WORKSHOP"
+        (event) => event.summary === "工房予約"
       );
 
       // 工房予約以外のイベントを取得し、バッファを考慮
@@ -55,7 +60,7 @@ const App = () => {
         getFullyBookedEvents(workshopBookings);
       setTimeSlots(timeSlots);
 
-      // 全てのイベントを統合（工房予約イベントは表示しない）
+      // 非ワークショップイベントと満員イベントを統合
       const processedEvents = [...nonClickableEvents, ...fullyBookedEvents];
       setCalendarEvents(processedEvents);
       setNonWorkshopEvents(nonWorkshopEvents);
@@ -64,29 +69,40 @@ const App = () => {
     }
   };
 
+  // 更新を確認する関数
+  const checkUpdates = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/check-updates`,
+        {
+          params: { lastUpdate },
+        }
+      );
+
+      if (response.data.hasUpdate) {
+        // 更新があればイベントを再取得
+        fetchEvents();
+        setLastUpdate(new Date().toISOString());
+      }
+    } catch (error) {
+      console.error("Error checking updates:", error);
+    }
+  };
+
   useEffect(() => {
+    // 初回レンダリング時にイベントを取得
     fetchEvents();
 
-    const socket = new WebSocket("ws://localhost:5101");
+    // 30秒ごとに更新を確認
+    const interval = setInterval(checkUpdates, 30000);
+    return () => clearInterval(interval);
+  }, [lastUpdate]);
 
-    socket.onopen = () => {
-      console.log("WebSocket connection established");
-    };
-
-    socket.onmessage = (message) => {
-      const parsedData = JSON.parse(message.data);
-      if (parsedData.type === "NEW_BOOKING") {
-        fetchEvents();
-      }
-    };
-
-    socket.onclose = () => {
-      console.log("WebSocket connection closed");
-    };
-
-    return () => {
-      socket.close();
-    };
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
   }, []);
 
   const getFullyBookedEvents = (workshopReservations) => {
@@ -97,8 +113,9 @@ const App = () => {
     workshopReservations.forEach((reservation) => {
       const start = new Date(reservation.start.dateTime);
       const end = new Date(reservation.end.dateTime);
-
-      const dateString = start.toISOString().split("T")[0];
+      const dateString = start.toLocaleDateString("ja-JP", {
+        timeZone: "Asia/Tokyo",
+      });
       if (!timeSlots[dateString]) {
         timeSlots[dateString] = {};
       }
@@ -139,9 +156,9 @@ const App = () => {
         ) {
           endTime = currentTime;
         } else {
-          // イベントを追加
-          const eventStart = new Date(`${date}T${startTime}`);
-          const eventEnd = new Date(`${date}T${endTime}`);
+          const formattedDate = date.replace(/\//g, "-");
+          const eventStart = new Date(`${formattedDate}T${startTime}:00`);
+          const eventEnd = new Date(`${formattedDate}T${endTime}:00`);
           eventEnd.setMinutes(eventEnd.getMinutes() + 15);
 
           fullyBookedEvents.push({
@@ -151,7 +168,6 @@ const App = () => {
             className: "fully-booked",
           });
 
-          // 次の区間の開始
           startTime = currentTime;
           endTime = currentTime;
         }
@@ -201,11 +217,10 @@ const App = () => {
 
   const bookReservation = async (start, end) => {
     try {
-      // FirebaseのIDトークンを取得
       const idToken = await auth.currentUser.getIdToken(true);
 
       const response = await axios.post(
-        "/api/book",
+        `${process.env.REACT_APP_API_BASE_URL}/book`,
         {
           startDate: start,
           endDate: end,
@@ -218,6 +233,7 @@ const App = () => {
       );
       setShowBookingModal(false);
       alert(response.data.message);
+      fetchEvents();
     } catch (error) {
       console.error("予約エラー:", error);
       alert(
@@ -228,8 +244,71 @@ const App = () => {
     }
   };
 
+  // ユーザーの予約を取得する関数
+  const fetchUserReservations = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/calendar-events`
+      );
+      const events = response.data.events;
+
+      // ユーザーのメールアドレスが含まれている予約をフィルタリング
+      const userReservations = events.filter(
+        (event) => event.description && event.description.includes(user?.email) // descriptionが存在するかチェック
+      );
+
+      setReservations(userReservations); // 予約を設定
+    } catch (error) {
+      console.error("Error fetching user reservations:", error);
+    }
+  };
+  const handleListIconClick = () => {
+    if (user && user.email) {
+      // ユーザーがログインしていて、メールアドレスが取得できている場合
+      fetchUserReservations(); // 予約を取得
+      setShowListModal(true); // モーダルを表示
+    } else {
+      setShowLoginModal(true); // ログインしていない、またはメールアドレスが取得できていない場合はログインモーダルを表示
+    }
+  };
+
+  // Function to handle cancelling a reservation
+  const cancelReservation = async (reservationId) => {
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      await axios.delete(
+        `${process.env.REACT_APP_API_BASE_URL}/cancel-reservation/${reservationId}`,
+        {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }
+      );
+      // After cancellation, refetch reservations
+      fetchUserReservations();
+      alert("予約をキャンセルしました。");
+    } catch (error) {
+      console.error(
+        "Error cancelling reservation:",
+        error.response?.data || error.message
+      );
+      alert("キャンセルに失敗しました。");
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
+  }, []);
+
   return (
     <div className="App">
+      <div>
+        <p>カレンダー内の時間をクリックすると、ログイン後に予約ができます。</p>
+        <p>
+          ログイン後であれば右下のリストアイコンから予約の確認とキャンセルができます。
+        </p>
+      </div>
       <CalendarComponent
         onDateClick={handleDateClick}
         events={calendarEvents}
@@ -252,6 +331,16 @@ const App = () => {
           timeSlots={timeSlots}
         />
       )}
+      {showListModal && (
+        <ListModal
+          reservations={reservations} // 取得した予約を渡す
+          onClose={() => setShowListModal(false)} // モーダルを閉じる処理
+          onCancel={cancelReservation} // キャンセル処理
+        />
+      )}
+      <div className="fixed-icon">
+        <ListIcon fontSize="large" onClick={handleListIconClick} />
+      </div>
     </div>
   );
 };

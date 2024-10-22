@@ -32,7 +32,7 @@ const BookingModal = ({
 
   const generateTimeOptions = () => {
     const times = [];
-    for (let hour = 9; hour <= 21; hour++) {
+    for (let hour = 0; hour <= 23; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
         const time = `${String(hour).padStart(2, "0")}:${String(
           minute
@@ -40,6 +40,7 @@ const BookingModal = ({
         times.push(time);
       }
     }
+    times.push("24:00");
     return times;
   };
 

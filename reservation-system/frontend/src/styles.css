@@ -19,3 +19,33 @@
   width: 300px;
   z-index: 1001; /* カレンダーの z-index より上に設定 */
 }
+
+.fixed-icon {
+  position: fixed;
+  bottom: 30px; /* Move it a bit away from the bottom */
+  right: 5%; /* Move it towards the center horizontally */
+  transform: translateX(30%); /* Adjust the centering */
+  z-index: 1000;
+  cursor: pointer;
+  background-color: rgba(128, 180, 236, 0.8); /* Blue background */
+  border-radius: 50%; /* Make it circular */
+  padding: 10px; /* Add some padding for more visibility */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow for more emphasis */
+  transition: background-color 0.3s ease; /* Smooth color transition */
+}
+
+.fixed-icon:hover {
+  background-color: rgb(178, 205, 234); /* Brighten the blue on hover */
+}
+
+.reservation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.App {
+  text-align: left;
+  font-size: small;
+}

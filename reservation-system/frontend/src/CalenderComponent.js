@@ -60,8 +60,8 @@ const CalendarComponent = ({ events, onDateClick }) => {
         plugins={[timeGridPlugin, interactionPlugin]}
         locale={jaLocale}
         initialView="timeGridWeek"
-        slotMinTime="09:00:00"
-        slotMaxTime="22:00:00"
+        slotMinTime="00:00:00"
+        slotMaxTime="24:00:00"
         events={events}
         selectable={true}
         select={onDateClick}
